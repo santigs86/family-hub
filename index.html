@@ -113,6 +113,20 @@
   .cell{width:100%;min-height:50px;padding:8px 12px;border-radius:12px;background:var(--inputbg);border:1px solid var(--border);text-align:left;font-size:15px;line-height:1.2}
   .cell.empty{color:var(--muted);font-style:italic}
   table.menu .dia{font-weight:700;font-size:15px;width:58px}
+  [hidden]{display:none!important}
+  .tabs{display:flex;gap:6px;margin-bottom:10px;flex-shrink:0}
+  .tab{flex:1;padding:8px 10px;border-radius:12px;border:1px solid var(--border);background:var(--inputbg);font-weight:600;font-size:15px}
+  .tab.on{background:var(--accent);color:var(--btn);border-color:var(--accent)}
+  .wk-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-shrink:0}
+  .wk-nav .rango{font-weight:700;font-size:15px}
+  .cole{flex:1;min-height:0;display:flex;flex-direction:column}
+  .cole-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .dcard{background:var(--inputbg);border:1px solid var(--border);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto}
+  .dcard.today{border-color:var(--accent)}
+  .dcard-h{display:flex;flex-direction:column;font-weight:700;font-size:15px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+  .dcard-h .muted{font-size:12px}
+  .plato{font-size:14px;line-height:1.25}
+  .festivo{font-weight:800;color:var(--danger);font-size:15px;margin-top:6px}
 
   /* Avisos */
   .note{background:color-mix(in srgb,var(--c) 12%,var(--inputbg));border-left:6px solid var(--c);border-radius:14px;padding:10px 12px;margin-bottom:10px}
@@ -138,6 +152,7 @@
     .app{height:auto;min-height:100dvh}
     .grid{grid-template-columns:1fr;grid-template-rows:auto;grid-template-areas:"cal" "tareas" "compra" "menu" "avisos"}
     .panel{min-height:380px}
+    .cole-grid{grid-template-columns:1fr}
     .weather{min-width:0}
     header{flex-wrap:wrap;height:auto}
   }
@@ -214,10 +229,22 @@
       </div>
     </section>
 
-    <!-- Menú semanal -->
+    <!-- Menú -->
     <section class="panel p-menu">
-      <div class="panel-h"><h2>Menú semanal</h2></div>
-      <div class="scroll">
+      <div class="panel-h"><h2>Menú</h2></div>
+      <div class="tabs">
+        <button class="tab on" data-act="tab" data-id="colegio">Colegio</button>
+        <button class="tab" data-act="tab" data-id="casa">Casa</button>
+      </div>
+      <div class="cole" id="menu-cole">
+        <div class="wk-nav">
+          <button class="ghost" data-act="semana" data-id="-7" aria-label="Semana anterior">‹ Anterior</button>
+          <span class="rango" id="cole-rango"></span>
+          <button class="ghost" data-act="semana" data-id="7" aria-label="Semana siguiente">Siguiente ›</button>
+        </div>
+        <div class="cole-grid" id="cole-grid"></div>
+      </div>
+      <div class="scroll" id="menu-casa" hidden>
         <table class="menu">
           <thead><tr><th></th><th>Comida</th><th>Cena</th></tr></thead>
           <tbody id="menu-body"></tbody>
@@ -332,12 +359,15 @@ const MIEMBROS = {
 const DIAS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const RUTINAS_DEFAULT = ['Hacer la cama','Recoger la mochila','Lavarse los dientes','Deberes o lectura'];
-const TABLAS = ['tareas','menu','compras','avisos','eventos'];
+const TABLAS = ['tareas','menu','menu_colegio','compras','avisos','eventos'];
+const TABLAS_POR_ID = ['menu','menu_colegio'];
 const LS = { url: 'hub_supabase_url', key: 'hub_supabase_key', tema: 'hub_tema' };
 
 let sb = null;            // cliente de Supabase
 let modoRemoto = false;   // true cuando hay conexión activa con Supabase
-const estado = { tareas: [], menu: [], compras: [], avisos: [], eventos: [] };
+let vistaMenu = 'colegio';
+let semanaBase = null;    // lunes de la semana mostrada
+const estado = { tareas: [], menu: [], menu_colegio: [], compras: [], avisos: [], eventos: [] };
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -372,14 +402,14 @@ const Local = {
   get(t) { try { return JSON.parse(localStorage.getItem('hub_local_' + t)) || []; } catch { return []; } },
   set(t, rows) { localStorage.setItem('hub_local_' + t, JSON.stringify(rows)); }
 };
-const ordenar = (t, rows) => rows.sort((a, b) => t === 'menu'
+const ordenar = (t, rows) => rows.sort((a, b) => TABLAS_POR_ID.includes(t)
   ? String(a.id).localeCompare(String(b.id))
   : String(a.created_at || '').localeCompare(String(b.created_at || '')));
 
 const db = {
   async select(t) {
     if (!modoRemoto) return ordenar(t, Local.get(t));
-    const { data, error } = await sb.from(t).select('*').order(t === 'menu' ? 'id' : 'created_at', { ascending: true });
+    const { data, error } = await sb.from(t).select('*').order(TABLAS_POR_ID.includes(t) ? 'id' : 'created_at', { ascending: true });
     if (error) throw error;
     return data;
   },
@@ -445,7 +475,7 @@ function setSync(kind, text) {
    RENDER
    ========================================================= */
 function render(t) {
-  const fn = { tareas: renderTareas, compras: renderCompras, avisos: renderAvisos, eventos: renderCalendario, menu: renderMenu }[t];
+  const fn = { tareas: renderTareas, compras: renderCompras, avisos: renderAvisos, eventos: renderCalendario, menu: renderMenu, menu_colegio: renderColegio }[t];
   if (fn) fn();
 }
 
@@ -501,6 +531,38 @@ function renderMenu() {
       <td><button class="cell ${n ? '' : 'empty'}" data-act="menu" data-id="${i}-cena">${n ? esc(n) : 'Añadir'}</button></td>
     </tr>`;
   }).join('');
+}
+
+/* ---------- Menú del colegio (lunes a viernes) ---------- */
+function lunesDe(d) {
+  const x = startOfDay(d);
+  return addDays(x, -((x.getDay() + 6) % 7));
+}
+function renderColegio() {
+  if (!semanaBase) semanaBase = lunesDe(new Date());
+  const fin = addDays(semanaBase, 4);
+  $('#cole-rango').textContent = `${semanaBase.getDate()} ${MESES[semanaBase.getMonth()]} – ${fin.getDate()} ${MESES[fin.getMonth()]}`;
+  const hoyIso = isoLocal(new Date());
+  $('#cole-grid').innerHTML = [0, 1, 2, 3, 4].map(i => {
+    const d = addDays(semanaBase, i);
+    const iso = isoLocal(d);
+    const r = estado.menu_colegio.find(x => x.fecha === iso);
+    const lineas = r && r.platos ? r.platos.split('\n').filter(Boolean) : [];
+    let cuerpo;
+    if (r && r.festivo) cuerpo = '<div class="festivo">FESTIVO</div>';
+    else if (lineas.length) cuerpo = lineas.map(l => `<div class="plato">${esc(l)}</div>`).join('');
+    else cuerpo = '<div class="noev">Sin menú cargado</div>';
+    return `<div class="dcard ${iso === hoyIso ? 'today' : ''}">
+      <div class="dcard-h"><span>${DIAS[i]}</span><span class="muted">${d.getDate()} ${MESES[d.getMonth()]}</span></div>
+      ${cuerpo}
+    </div>`;
+  }).join('');
+}
+function setVistaMenu(v) {
+  vistaMenu = v;
+  document.querySelectorAll('[data-act="tab"]').forEach(b => b.classList.toggle('on', b.dataset.id === v));
+  $('#menu-cole').hidden = v !== 'colegio';
+  $('#menu-casa').hidden = v !== 'casa';
 }
 
 function eventoHTML(e) {
@@ -681,6 +743,8 @@ document.addEventListener('click', e => {
   else if (act === 'reset') accion(() => reiniciarDia(id));
   else if (act === 'compra') accion(() => toggleCompra(id));
   else if (act === 'menu') abrirMenu(id);
+  else if (act === 'tab') setVistaMenu(id);
+  else if (act === 'semana') { semanaBase = addDays(semanaBase || lunesDe(new Date()), +id); renderColegio(); }
   else if (act === 'delAviso') accion(async () => { await db.remove('avisos', [id]); await cargar('avisos'); });
   else if (act === 'delEvento' && confirm('¿Borrar este evento?'))
     accion(async () => { await db.remove('eventos', [id]); await cargar('eventos'); });
@@ -825,6 +889,8 @@ async function iniciar() {
   setInterval(tick, 1000);
   setTema(localStorage.getItem(LS.tema) || 'light');
   rellenarSelects();
+  semanaBase = lunesDe(new Date());
+  setVistaMenu(vistaMenu);
   clima();
   setInterval(clima, 30 * 60 * 1000);
   setInterval(() => renderCalendario(), 60 * 1000);
