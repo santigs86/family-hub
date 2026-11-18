@@ -45,7 +45,7 @@
   .icon-btn{width:40px;height:40px;border-radius:12px;background:var(--inputbg);border:1px solid var(--border);display:grid;place-items:center;color:var(--text)}
   .icon-btn svg{width:20px;height:20px}
 
-  .grid{flex:1;min-height:0;display:grid;gap:10px;grid-template-columns:1fr 1.6fr 1fr;grid-template-rows:1.2fr 1fr;grid-template-areas:"cal cal avisos" "comidas tareas compra"}
+  .grid{flex:1;min-height:0;display:grid;gap:10px;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1.1fr 1fr;grid-template-areas:"cal cal compra" "comidas comidas tareas"}
   .p-cal{grid-area:cal}.p-avisos{grid-area:avisos}.p-comidas{grid-area:comidas}.p-tareas{grid-area:tareas}.p-compra{grid-area:compra}
   .panel{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:10px 12px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
   .panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-shrink:0;flex-wrap:wrap}
@@ -151,7 +151,7 @@
   @media (max-width:900px){
     body{overflow:auto}
     .app{height:auto;min-height:100dvh}
-    .grid{grid-template-columns:1fr;grid-template-rows:auto;grid-template-areas:"cal" "comidas" "tareas" "compra" "avisos"}
+    .grid{grid-template-columns:1fr;grid-template-rows:auto;grid-template-areas:"cal" "comidas" "tareas" "compra"}
     .panel{min-height:320px}
     .cole-grid{grid-template-columns:repeat(5,minmax(130px,1fr))}
     .week{grid-template-columns:repeat(7,minmax(120px,1fr));overflow-x:auto}
@@ -190,23 +190,6 @@
         <button class="btn" id="btn-evento">+ Evento</button>
       </div>
       <div class="week" id="week"></div>
-    </section>
-
-    <!-- Avisos -->
-    <section class="panel p-avisos">
-      <div class="panel-h"><h2>Tablón de avisos</h2></div>
-      <form class="stack" id="form-aviso" autocomplete="off">
-        <input class="field" id="in-aviso" placeholder="Escribe un aviso…" maxlength="200">
-        <div class="row">
-          <select class="field sel" id="sel-aviso">
-            <option value="papa">Papá</option>
-            <option value="mama">Mamá</option>
-          </select>
-          <label class="check grow"><input type="checkbox" id="chk-urgente"> Urgente</label>
-          <button class="btn" type="submit">Fijar</button>
-        </div>
-      </form>
-      <div class="scroll" id="avisos-lista"></div>
     </section>
 
     <!-- Comidas: colegio y cena -->
@@ -348,7 +331,7 @@ const TAREAS_DEFAULT = [
   { nombre: 'No pelearse', estrellas: 2 }
 ];
 const META_ESTRELLAS = 20;
-const TABLAS = ['tareas','menu','menu_colegio','compras','avisos','eventos'];
+const TABLAS = ['tareas','menu','menu_colegio','compras','eventos'];
 const TABLAS_POR_ID = ['menu','menu_colegio'];
 const LS = { url: 'hub_supabase_url', key: 'hub_supabase_key', tema: 'hub_tema' };
 
@@ -357,7 +340,7 @@ let modoRemoto = false;
 let vistaComidas = 'colegio';
 let semanaCole = null;
 let wx = null;
-const estado = { tareas: [], menu: [], menu_colegio: [], compras: [], avisos: [], eventos: [] };
+const estado = { tareas: [], menu: [], menu_colegio: [], compras: [], eventos: [] };
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -473,7 +456,7 @@ function setSync(kind, text) {
    ========================================================= */
 function render(t) {
   const fn = {
-    tareas: renderTareas, compras: renderCompras, avisos: renderAvisos,
+    tareas: renderTareas, compras: renderCompras,
     eventos: renderCalendario, menu: renderCena, menu_colegio: renderColegio
   }[t];
   if (fn) fn();
@@ -518,21 +501,6 @@ function renderCompras() {
       <span class="txt">${esc(i.nombre)}</span>
     </li>`).join('') : '<li class="empty">Lista vacía</li>';
   $('#compra-count').textContent = `${items.filter(i => !i.comprado).length} pendientes`;
-}
-
-function renderAvisos() {
-  const lista = [...estado.avisos].sort((a, b) => (b.urgente - a.urgente) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
-  $('#avisos-lista').innerHTML = lista.length ? lista.map(a => {
-    const m = MIEMBROS[a.autor] || { nombre: a.autor, color: '#64748b' };
-    return `
-    <article class="note ${a.urgente ? 'urgent' : ''}" style="--c:${m.color}">
-      <div class="note-h">
-        <span>${esc(m.nombre)} ${a.urgente ? '<span class="urg">· URGENTE</span>' : ''}</span>
-        <button class="x" data-act="delAviso" data-id="${a.id}" aria-label="Borrar aviso">×</button>
-      </div>
-      <p>${esc(a.texto)}</p>
-    </article>`;
-  }).join('') : '<p class="empty">Sin avisos</p>';
 }
 
 function renderCena() {
@@ -778,7 +746,6 @@ document.addEventListener('click', e => {
   else if (act === 'menu') abrirMenu(id);
   else if (act === 'tab') setVistaComidas(id);
   else if (act === 'semana') { semanaCole = addDays(semanaCole || lunesDe(new Date()), +id); renderColegio(); }
-  else if (act === 'delAviso') accion(async () => { await db.remove('avisos', [id]); await cargar('avisos'); });
   else if (act === 'delEvento' && confirm('¿Borrar este evento?'))
     accion(async () => { await db.remove('eventos', [id]); await cargar('eventos'); });
 });
@@ -809,19 +776,6 @@ $('#btn-limpiar').onclick = () => accion(async () => {
 $('#btn-vaciar').onclick = () => {
   if (confirm('¿Vaciar toda la lista de la compra?'))
     accion(async () => { await db.remove('compras', estado.compras.map(x => x.id)); await cargar('compras'); });
-};
-
-$('#form-aviso').onsubmit = e => {
-  e.preventDefault();
-  const texto = $('#in-aviso').value.trim();
-  if (!texto) return;
-  const autor = $('#sel-aviso').value, urgente = $('#chk-urgente').checked;
-  $('#in-aviso').value = '';
-  $('#chk-urgente').checked = false;
-  accion(async () => {
-    await db.save('avisos', { id: uid(), texto, autor, urgente, created_at: new Date().toISOString() });
-    await cargar('avisos');
-  });
 };
 
 $('#form-evento').onsubmit = e => {
