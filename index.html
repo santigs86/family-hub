@@ -611,22 +611,19 @@ function pinguino(lluvia) {
   </svg>`;
 }
 
-function tigre(gafas, lluvia) {
+function leon(gafas, lluvia) {
   return `<svg viewBox="0 0 120 120" aria-hidden="true">
-    <circle cx="28" cy="30" r="12" fill="#F97316" stroke="#fff" stroke-width="3"/>
-    <circle cx="92" cy="30" r="12" fill="#F97316" stroke="#fff" stroke-width="3"/>
-    <circle cx="60" cy="62" r="40" fill="#F97316" stroke="#fff" stroke-width="3"/>
-    <g stroke="#1e293b" stroke-width="5" stroke-linecap="round">
-      <path d="M60 24 L60 36"/><path d="M44 28 L48 38"/><path d="M76 28 L72 38"/>
-      <path d="M22 60 L32 62"/><path d="M98 60 L88 62"/>
-    </g>
-    <ellipse cx="60" cy="80" rx="20" ry="14" fill="#FEF3C7"/>
-    <path d="M55 72 L65 72 L60 78Z" fill="#1e293b"/>
-    <path d="M60 78 Q54 86 48 82 M60 78 Q66 86 72 82" fill="none" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="60" cy="62" r="46" fill="#B45309" stroke="#fff" stroke-width="3"/>
+    <circle cx="30" cy="30" r="10" fill="#F59E0B" stroke="#fff" stroke-width="3"/>
+    <circle cx="90" cy="30" r="10" fill="#F59E0B" stroke="#fff" stroke-width="3"/>
+    <circle cx="60" cy="64" r="32" fill="#FCD34D" stroke="#fff" stroke-width="3"/>
+    <ellipse cx="60" cy="80" rx="16" ry="11" fill="#FEF3C7"/>
+    <path d="M55 72 L65 72 L60 78Z" fill="#7C2D12"/>
+    <path d="M60 78 Q54 86 48 82 M60 78 Q66 86 72 82" fill="none" stroke="#7C2D12" stroke-width="2.5" stroke-linecap="round"/>
     ${gafas
       ? `<g fill="#111827"><rect x="30" y="50" width="26" height="18" rx="6"/><rect x="64" y="50" width="26" height="18" rx="6"/></g>
          <rect x="56" y="55" width="8" height="4" fill="#111827"/>`
-      : `<circle cx="44" cy="58" r="4" fill="#1e293b"/><circle cx="76" cy="58" r="4" fill="#1e293b"/>`}
+      : `<circle cx="44" cy="58" r="4" fill="#7C2D12"/><circle cx="76" cy="58" r="4" fill="#7C2D12"/>`}
     ${lluvia ? paraguas() : ''}
   </svg>`;
 }
@@ -634,14 +631,14 @@ function tigre(gafas, lluvia) {
 function stickerTiempo(max, codigo) {
   const lluvia = esLluvia(codigo);
   if (max < 15) return pinguino(lluvia);
-  return tigre(esSoleado(codigo), lluvia);
+  return leon(esSoleado(codigo), lluvia);
 }
 
 function renderClima() {
   if (!wx) return;
   $('#wx-temp').textContent = wx.temp + '°';
   $('#wx-desc').textContent = `${wxTexto(wx.codigo)} · máx ${wx.max}° · mín ${wx.min}°`;
-  $('#wx-sticker').innerHTML = stickerTiempo(wx.max, wx.codigo);
+  $('#wx-sticker').innerHTML = stickerTiempo(wx.temp, wx.codigo);
 }
 
 async function clima() {
